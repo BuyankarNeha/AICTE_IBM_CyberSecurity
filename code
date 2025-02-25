@@ -1,0 +1,72 @@
+import cv2
+import numpy as np
+from google.colab import files
+from google.colab.patches import cv2_imshow
+from PIL import Image
+import IPython.display as display
+
+uploaded = files.upload()
+image_name = list(uploaded.keys())[0]  
+
+img = cv2.imread(image_name)
+
+if img is None:
+    raise ValueError("Error: Image not found! Please check the file name and upload again.")
+else:
+    print("Image loaded successfully!")
+
+def encrypt_message(image, message, passcode):
+    ascii_map = {chr(i): i for i in range(256)}
+    rows, cols, _ = image.shape
+    x, y, z = 0, 0, 0  
+
+    for char in message:
+        image[y, x, z] = ascii_map[char]  
+        x = (x + 1) % cols  
+        if x == 0:
+            y = (y + 1) % rows  
+        z = (z + 1) % 3  
+
+    encrypted_img_name = "stego_image.png"
+    cv2.imwrite(encrypted_img_name, image)
+    print(f"Encryption complete! Image saved as '{encrypted_img_name}'.")
+
+    return encrypted_img_name, passcode
+
+secret_msg = input("Enter your secret message: ")
+encryption_key = input("Set a passcode for encryption: ")
+
+stego_image, stored_key = encrypt_message(img, secret_msg, encryption_key)
+
+small_img = Image.open(stego_image)
+small_img = small_img.resize((400, 300))  
+display.display(small_img)
+
+files.download(stego_image)
+
+def decrypt_message(image_path, stored_passcode):
+    img = cv2.imread(image_path)
+
+    if img is None:
+        print("Error: Image not found.")
+        return
+
+    input_key = input("Enter passcode for Decryption: ")
+
+    if input_key == stored_passcode:
+        ascii_reverse_map = {i: chr(i) for i in range(256)}
+        message = ""
+        x, y, z = 0, 0, 0
+
+        for _ in range(len(secret_msg)):  
+            message += ascii_reverse_map[img[y, x, z]]  
+            x = (x + 1) % img.shape[1]
+            if x == 0:
+                y = (y + 1) % img.shape[0]
+            z = (z + 1) % 3  
+
+        print(f"Decryption successful! Hidden Message: {message}")
+    else:
+        print("YOU ARE NOT AUTHORIZED TO DECRYPT.")
+
+decrypt_message(stego_image, stored_key)
